@@ -1,20 +1,9 @@
-(ns pl.fermich.odds_router)
+(ns pl.fermich.odds_router.core)
 
 (require '[rx.lang.clojure.core :as rx])
 (import '(rx Observable))
-(import '(java.util.concurrent TimeUnit))
-
-;https://github.com/ReactiveX/RxJava/wiki/Observable-Utility-Operators
-
-;(def obs (Observable/interval 100 TimeUnit/MILLISECONDS))
-;
-;(def subscription (rx/subscribe obs
-;              (fn [value]
-;                (prn (str "Got value: " value)))))
-;
-;(Thread/sleep 1000)
-;(rx/unsubscribe subscription)
-;(prn "Unsubscribed")
+(import '(java.util.concurrent TimeUnit)
+        '(rx.functions Func2))
 
 (defn just-obs [v]
   (rx/observable*
@@ -22,19 +11,30 @@
       (rx/on-next observer v)
       (rx/on-completed observer))))
 
-
-(defn heartbeat-call [v]
+(defn login-call [v]
+  (prn "Login" v)
   12345)
+(def login-trigger (Observable/interval 10 TimeUnit/SECONDS))
+(def token-obs (rx/map login-call login-trigger))
+
+(defn heartbeat-call [token]
+  (prn "Hartbeat" token)
+  token)
 (def heartbeat-trigger (Observable/interval 1 TimeUnit/SECONDS))
 (def heartbeat-obs (rx/map heartbeat-call heartbeat-trigger))
 
 
+(defn heartbeat-call-fun []
+  (reify
+    Func2
+    (call [this token count]
+      (heartbeat-call token))))
+(defn heartbeat-join [token count] (heartbeat-call token))
+(def heartbeat-with-token (Observable/combineLatest token-obs heartbeat-trigger (heartbeat-call-fun)))
 
-
-(def subscription (rx/subscribe heartbeat-obs
+(def subscription (rx/subscribe heartbeat-with-token
               (fn [value]
                 (prn (str "Got value: " value)))))
-
 
 ;(rx/unsubscribe subscription)
 
@@ -45,16 +45,5 @@
 (defn fast-producing-obs []
   (rx/map inc (Observable/interval 1 TimeUnit/MILLISECONDS)))
 
-;(rx/subscribe (->> (rx/map vector
-;                           (.onBackpressureBuffer (fast-producing-obs))
-;                           (slow-producing-obs))
-;                   (rx/map (fn [[x y]] (+ x y)))
-;                   (rx/take 10)) prn (fn [e] (prn "error is " e)))
-
-;(rx/subscribe (->> (rx/map vector
-;                           (fast-producing-obs)
-;                           (const-producing-obs 666))
-;                   (rx/map (fn [[x y]] (+ x y)))
-;                   (rx/take 10)) prn (fn [e] (prn "error is " e)))
-
-(Thread/sleep 15000)
+(defn -main []
+  (Thread/sleep 150000))
