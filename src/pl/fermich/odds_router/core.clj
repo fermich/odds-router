@@ -21,7 +21,7 @@
 (defn heartbeat-call [token]
   (prn "Heartbeat: " token)
   (if (= token "1") 200 500))
-(def heartbeat-trigger (Observable/interval 5 TimeUnit/SECONDS))
+(def heartbeat-trigger (Observable/interval 8 TimeUnit/SECONDS))
 (def heartbeat-obs (->> (latest-token-obs token-subject heartbeat-trigger)
                         (rx/map (fn [token] (heartbeat-call token)))))
 
@@ -29,9 +29,9 @@
 
 (defn login-call [v]
   (prn "Login: " v)
-  nil)
+  "1")
 (def login-failure-obs (rx/filter (complement (fn [x] (= x 200))) heartbeat-obs))
-(def login-result-obs (->> (.debounce login-failure-obs 1 TimeUnit/SECONDS)
+(def login-result-obs (->> (.debounce login-failure-obs 4 TimeUnit/SECONDS)
                           (rx/map login-call)))
 
 (def login-subscription (.subscribe login-result-obs token-subject))
@@ -54,14 +54,14 @@
 
 (defn -main []
   (print "Start!!")
-  (Thread/sleep 1000)
-  (.onNext token-subject "1")
-  ;(.onCompleted token-subject)
-  (Thread/sleep 5000)
-  (.onNext token-subject "2")
+  ;(Thread/sleep 1000)
+  (.onNext token-subject nil)
+  ;;(.onCompleted token-subject)
+  ;(Thread/sleep 5000)
+  ;(.onNext token-subject "2")
 
-  ;(Thread/sleep 7000)
-  ;(.onNext token-subject "3")
+  (Thread/sleep 15000)
+  (.onNext token-subject "3")
 
   ;(.onCompleted token-subject)
 
