@@ -5,6 +5,20 @@
 (import '(java.util.concurrent TimeUnit)
         '(rx.functions Func2))
 
+(defn just-obs [v]
+  (rx/observable*
+    (fn [observer]
+      (rx/on-next observer v)
+      (prn "Getting new value")
+      (rx/on-completed observer)
+      )))
+
+(def just-token-obs (rx/cycle (just-obs "1")))
+
+(def const-token-obs
+  (rx/cycle (just-obs "1")))
+
+
 (defn two-arg-fun-call []
   (reify
     Func2
