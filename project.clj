@@ -5,4 +5,6 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [io.reactivex/rxclojure "1.0.0"]]
-  :main pl.fermich.odds_router.core)
+  :profiles {:prod {:main pl.fermich.odds_router.core}
+             :samples {:main pl.fermich.odds_router.rxsamples}})
+

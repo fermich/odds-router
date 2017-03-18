@@ -14,7 +14,7 @@
 (defn login-call [v]
   (prn "Login" v)
   12345)
-(def login-trigger (Observable/interval 10 TimeUnit/SECONDS))
+(def login-trigger (Observable/interval 10 TimeUnit/SECONDS))  ;replace with on demand request
 (def token-obs (rx/map login-call login-trigger))
 
 (defn heartbeat-call [token]
@@ -24,13 +24,13 @@
 (def heartbeat-obs (rx/map heartbeat-call heartbeat-trigger))
 
 
-(defn heartbeat-call-fun []
+(defn heartbeat-call-fun [handler]
   (reify
     Func2
     (call [this token count]
-      (heartbeat-call token))))
+      (handler token))))
 (defn heartbeat-join [token count] (heartbeat-call token))
-(def heartbeat-with-token (Observable/combineLatest token-obs heartbeat-trigger (heartbeat-call-fun)))
+(def heartbeat-with-token (Observable/combineLatest token-obs heartbeat-trigger (heartbeat-call-fun heartbeat-call)))
 
 (def subscription (rx/subscribe heartbeat-with-token
               (fn [value]
