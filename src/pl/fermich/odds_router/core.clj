@@ -6,7 +6,7 @@
 (import '(java.util.concurrent TimeUnit)
         '(rx.functions Func2))
 
-(def token-subject (ReplaySubject/create))
+;----------------------------------
 
 (defn latest-token-obs [token-provider trigger]
   (let [token-combiner (reify Func2 (call [this token counter] token))]
@@ -18,8 +18,6 @@
 
 ;----------------------------------
 
-(def heartbeat-interval 8)
-
 (defn heartbeat-call [token]
   (prn "Heartbeat: " token)
   (if (= token "1") 200 500))
@@ -29,27 +27,19 @@
     (->> (latest-token-obs token-provider heartbeat-trigger)
          (rx/map heartbeat-call))))
 
-(def heartbeat-obs (create-hearbeat-obs token-subject heartbeat-interval))
-
 ;----------------------------------
-
-(def relogin-interval 4)
 
 (defn login-call [v]
   (prn "Login: " v)
   "1")
 
 (defn create-login-obs [heartbeat-obs interval]
-  (let [login-failure-obs (rx/filter (complement (fn [x] (= x 200))) heartbeat-obs)]
-    (->> (.debounce login-failure-obs interval TimeUnit/SECONDS)
-         (rx/map login-call))))
-
-(def login-result-obs (create-login-obs heartbeat-obs relogin-interval))
-(def login-subscription (.subscribe (.retry login-result-obs)
-                                    token-subject))
+  (let [heartbeat-failure-obs (rx/filter (complement (fn [x] (= x 200))) heartbeat-obs)]
+    (->> (.debounce heartbeat-failure-obs interval TimeUnit/SECONDS)
+         (rx/map login-call)
+         (.retry))))
 
 ;----------------------------------
-(def list-book-interval 1)
 
 (defn list-book-call [token]
   ;(prn "Book: " token)
@@ -60,20 +50,28 @@
 (defn create-list-book-obs [token-obs interval]
   (let [list-book-trigger (Observable/interval interval TimeUnit/SECONDS)]
     (->> (latest-some-token-obs token-obs list-book-trigger)
-         (rx/map list-book-call))))
-
-(def list-book-obs (create-list-book-obs token-subject list-book-interval))
-
-(def list-book-subscription (rx/subscribe (.retry list-book-obs)
-                                          (fn [v] (prn "Got value: " v))
-                                          (fn [e] (prn "Got error: " e))))
+         (rx/map list-book-call)
+         (.retry))))
 
 ;----------------------------------
+
+(defn make-connection [heartbeat-interval relogin-interval list-book-interval]
+  (let [token-subject (ReplaySubject/create)
+        heartbeat-obs (create-hearbeat-obs token-subject heartbeat-interval)
+        login-token-obs (create-login-obs heartbeat-obs relogin-interval)
+        list-book-obs (create-list-book-obs token-subject list-book-interval)]
+    (.subscribe login-token-obs token-subject)
+    (rx/subscribe list-book-obs
+                  (fn [v] (prn "Got value: " v))
+                  (fn [e] (prn "Got error: " e)))
+    token-subject))
+
 
 ;(rx/unsubscribe subscription)
 
 (defn -main []
   (print "Start!!")
+  (def token-subject (make-connection 8 4 1))
   ;(Thread/sleep 1000)
   (.onNext token-subject nil)
   ;;(.onCompleted token-subject)
