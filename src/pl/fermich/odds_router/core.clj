@@ -1,4 +1,4 @@
-(ns pl.fermich.odds_router.core
+(ns pl.fermich.odds-router.core
   (:import (rx.subjects ReplaySubject)))
 
 (require '[rx.lang.clojure.core :as rx])
