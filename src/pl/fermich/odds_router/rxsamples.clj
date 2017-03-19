@@ -37,6 +37,11 @@
 (def operation-trigger (Observable/interval 1 TimeUnit/SECONDS))
 (def operation-obs (Observable/zip buff-value-obs operation-trigger (two-arg-fun-call)))
 
+;(def catch-heartbeat-obs (->> heartbeat-obs
+;                              (rx/catch* Exception
+;                                      (fn [e] (rx/return 500)))))
+
+
 (def subscription (rx/subscribe operation-obs
               (fn [value]
                 (prn (str "Got value: " value)))))

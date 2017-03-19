@@ -18,36 +18,51 @@
 
 ;----------------------------------
 
+(def heartbeat-interval 8)
+
 (defn heartbeat-call [token]
   (prn "Heartbeat: " token)
   (if (= token "1") 200 500))
-(def heartbeat-trigger (Observable/interval 8 TimeUnit/SECONDS))
-(def heartbeat-obs (->> (latest-token-obs token-subject heartbeat-trigger)
-                        (rx/map heartbeat-call)))
-;(def catch-heartbeat-obs (->> heartbeat-obs
-;                              (rx/catch* Exception
-;                                      (fn [e] (rx/return 500)))))
+
+(defn create-hearbeat-obs [token-provider interval]
+  (let [heartbeat-trigger (Observable/interval interval TimeUnit/SECONDS)]
+    (->> (latest-token-obs token-provider heartbeat-trigger)
+         (rx/map heartbeat-call))))
+
+(def heartbeat-obs (create-hearbeat-obs token-subject heartbeat-interval))
 
 ;----------------------------------
+
+(def relogin-interval 4)
 
 (defn login-call [v]
   (prn "Login: " v)
   "1")
-(def login-failure-obs (rx/filter (complement (fn [x] (= x 200))) heartbeat-obs))
-(def login-result-obs (->> (.debounce login-failure-obs 4 TimeUnit/SECONDS)
-                           (rx/map login-call)))
 
+(defn create-login-obs [heartbeat-obs interval]
+  (let [login-failure-obs (rx/filter (complement (fn [x] (= x 200))) heartbeat-obs)]
+    (->> (.debounce login-failure-obs interval TimeUnit/SECONDS)
+         (rx/map login-call))))
+
+(def login-result-obs (create-login-obs heartbeat-obs relogin-interval))
 (def login-subscription (.subscribe (.retry login-result-obs)
                                     token-subject))
 
 ;----------------------------------
+(def list-book-interval 1)
 
 (defn list-book-call [token]
   ;(prn "Book: " token)
-  (if (= token "3") (throw (Exception. "Getting book list error.")) (vector 1 2 3 4)))
-(def list-book-trigger (Observable/interval 1 TimeUnit/SECONDS))
-(def list-book-obs (->> (latest-some-token-obs token-subject list-book-trigger)
-                        (rx/map list-book-call)))
+  (if (= token "3")
+    (throw (Exception. "Getting book list error."))
+    (vector 1 2 3 4)))
+
+(defn create-list-book-obs [token-obs interval]
+  (let [list-book-trigger (Observable/interval interval TimeUnit/SECONDS)]
+    (->> (latest-some-token-obs token-obs list-book-trigger)
+         (rx/map list-book-call))))
+
+(def list-book-obs (create-list-book-obs token-subject list-book-interval))
 
 (def list-book-subscription (rx/subscribe (.retry list-book-obs)
                                           (fn [v] (prn "Got value: " v))
@@ -56,7 +71,6 @@
 ;----------------------------------
 
 ;(rx/unsubscribe subscription)
-
 
 (defn -main []
   (print "Start!!")
