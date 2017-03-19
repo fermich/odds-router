@@ -9,7 +9,7 @@
 (def token-subject (ReplaySubject/create))
 
 (defn latest-token-obs [token-provider trigger]
-  (let [token-combiner (reify Func2 (call [this x y] x))]
+  (let [token-combiner (reify Func2 (call [this token counter] token))]
     (Observable/combineLatest token-provider trigger token-combiner)))
 
 (defn latest-some-token-obs [token-provider trigger]
@@ -23,7 +23,10 @@
   (if (= token "1") 200 500))
 (def heartbeat-trigger (Observable/interval 8 TimeUnit/SECONDS))
 (def heartbeat-obs (->> (latest-token-obs token-subject heartbeat-trigger)
-                        (rx/map (fn [token] (heartbeat-call token)))))
+                        (rx/map heartbeat-call)))
+;(def catch-heartbeat-obs (->> heartbeat-obs
+;                              (rx/catch* Exception
+;                                      (fn [e] (rx/return 500)))))
 
 ;----------------------------------
 
@@ -32,20 +35,23 @@
   "1")
 (def login-failure-obs (rx/filter (complement (fn [x] (= x 200))) heartbeat-obs))
 (def login-result-obs (->> (.debounce login-failure-obs 4 TimeUnit/SECONDS)
-                          (rx/map login-call)))
+                           (rx/map login-call)))
 
-(def login-subscription (.subscribe login-result-obs token-subject))
+(def login-subscription (.subscribe (.retry login-result-obs)
+                                    token-subject))
 
 ;----------------------------------
 
 (defn list-book-call [token]
-  (prn "Book: " token)
-  (vector 1 2 3 4))
+  ;(prn "Book: " token)
+  (if (= token "3") (throw (Exception. "Getting book list error.")) (vector 1 2 3 4)))
 (def list-book-trigger (Observable/interval 1 TimeUnit/SECONDS))
 (def list-book-obs (->> (latest-some-token-obs token-subject list-book-trigger)
-                        (rx/map (fn [token] (list-book-call token)))))
+                        (rx/map list-book-call)))
 
-(def list-book-subscription (rx/subscribe list-book-obs (fn [value] )))
+(def list-book-subscription (rx/subscribe (.retry list-book-obs)
+                                          (fn [v] (prn "Got value: " v))
+                                          (fn [e] (prn "Got error: " e))))
 
 ;----------------------------------
 
