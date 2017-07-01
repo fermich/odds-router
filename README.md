@@ -1,14 +1,13 @@
-# odds-router
+# rx-token-based-client
 
-A Clojure library designed to ... well, that part is up to you.
+A RxClojure token based client implementing pull style network communication. 
 
 ## Usage
 
-FIXME
+lein run
 
 ## License
 
-Copyright © 2017 FIXME
+Copyright © 2017 Michal Ferlinski
 
-Distributed under the Eclipse Public License either version 1.0 or (at
-your option) any later version.
+Distributed under the Apache License Version 2.0
